@@ -1,0 +1,64 @@
+var goa = GOA.geometry();  
+
+Map.centerObject(goa, 9);
+
+// ------------- DEM ------------- //
+var dem = ee.Image("USGS/SRTMGL1_003").clip(goa);
+
+// -------------Land visualization-------------// 
+var demVis = {
+  min: 0,
+  max: 50,
+  palette: ['#f7f7f7', '#cccccc', '#969696', '#636363'] // neutral for land
+};
+Map.addLayer(dem, demVis, 'SRTM DEM (Goa)');
+
+// ------------- SLR FUNCTION ------------- //
+function createSLRLayer(height) {
+  var h = ee.Image.constant(height);
+
+  var depth = h
+    .subtract(dem)                // depth = SLR height - elevation
+    .updateMask(dem.lte(height))  
+    .clip(goa);                   
+  return depth
+    .rename('SLR_' + height + 'm')
+    .set('name', 'SLR_' + height + 'm');
+}
+
+// Water palette: light blue = shallow, dark blue = deep
+var waterPalette = [
+  '#deebf7', // very shallow
+  '#9ecae1',
+  '#6baed6',
+  '#3182bd',
+  '#08519c'  // deepest
+];
+
+// ------------- CREATE & ADD SLR LAYERS ------------- //
+var slrLayers = [];
+for (var i = 1; i <= 10; i++) {
+  var slr = createSLRLayer(i);
+  slrLayers.push(slr);
+
+  var vis = {
+    min: 0,
+    max: i,          // depth range (0–i meters)
+    palette: waterPalette
+  };
+
+  Map.addLayer(slr, vis, 'SLR +' + i + ' m (depth)');
+}
+
+// ------------- EXPORT TO GOOGLE DRIVE ------------- //
+Export.image.toDrive({
+  image: slrLayers[9],              // index 9 = 10 m
+  description: 'SLR_depth_10m_Goa',
+  folder: 'EarthEngineExports',     
+  fileNamePrefix: 'SLR_depth_10m_Goa',
+  region: goa,
+  scale: 30,                        // SRTM resolution
+  maxPixels: 1e13
+});
+
+
