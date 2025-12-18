@@ -1,0 +1,36 @@
+function maskL89sr(image) {
+  var qaMask = image.select('QA_PIXEL').bitwiseAnd(parseInt('11111', 2)).eq(0);
+  var saturationMask = image.select('QA_RADSAT').eq(0);
+  var opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2);
+  var thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0).add(-273.15);
+  return image.addBands(opticalBands, null, true)
+              .addBands(thermalBands, null, true)
+              .updateMask(qaMask)
+              .updateMask(saturationMask);
+}
+
+var landsat = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+  .filterBounds(roi)
+  .filterDate('2018-01-01', '2022-12-01')
+  .map(maskL89sr)
+  .median();
+
+// NDVI
+var ndvi = landsat.normalizedDifference(['SR_B5', 'SR_B4']).clip(roi);
+Map.addLayer(ndvi, {min: -0.5, max: 0.6, palette: ['blue', 'white', 'green']}, 'NDVI');
+Export.image.toDrive({image: ndvi, description: 'NDVI', scale: 30, region: roi, fileFormat: 'GeoTIFF', maxPixels: 1e9});
+
+// NDBI
+var ndbi = landsat.normalizedDifference(['SR_B6', 'SR_B5']).clip(roi);
+Map.addLayer(ndbi, {min: -0.5, max: 0.6, palette: ['blue', 'white', 'brown']}, 'NDBI');
+Export.image.toDrive({image: ndbi, description: 'NDBI', scale: 30, region: roi, fileFormat: 'GeoTIFF', maxPixels: 1e9});
+
+// NDWI
+var ndwi = landsat.normalizedDifference(['SR_B3', 'SR_B5']).clip(roi);
+Map.addLayer(ndwi, {min: -0.5, max: 0.6, palette: ['white', 'blue', 'cyan']}, 'NDWI');
+Export.image.toDrive({image: ndwi, description: 'NDWI', scale: 30, region: roi, fileFormat: 'GeoTIFF', maxPixels: 1e9});
+
+// Land Surface Temperature (LST)
+var lst = landsat.select('ST_B10').clip(roi);
+Map.addLayer(lst, {min: 30, max: 60, palette: ['blue', 'green', 'red']}, 'Land Surface Temperature');
+Export.image.toDrive({image: lst, description: 'LST', scale: 30, region: roi, fileFormat: 'GeoTIFF', maxPixels: 1e9});
