@@ -1,0 +1,49 @@
+var flowAccumulation = ee.Image('WWF/HydroSHEDS/15ACC');
+var flowAccumIndia = flowAccumulation.clip(indiaAOI);
+
+var flowAccumVis = {
+  min: 0.0, max: 100000.0,
+  palette: ['#0000ff', '#00ffff', '#ffff00', '#ff0000', '#ffffff'],
+  opacity: 0.8
+};
+
+Map.setCenter(78.9629, 20.5937, 5);
+Map.addLayer(flowAccumIndia, flowAccumVis, 'Flow Accumulation in India');
+
+// Title
+var titleLabel = ui.Label('HydroSHEDS Flow Accumulation in India', {
+  fontWeight: 'bold', fontSize: '24px', padding: '10px',
+  backgroundColor: 'white', color: 'black', position: 'top-center'
+});
+Map.add(titleLabel);
+
+// Legend
+var legend = ui.Panel({style: {position: 'bottom-left', padding: '8px', backgroundColor: 'white'}});
+legend.add(ui.Label('Flow Accumulation (Log Scale)', {fontWeight: 'bold', fontSize: '18px'}));
+var flowAccumClasses = [
+  {label: 'Low', color: '#0000ff'},
+  {label: 'Moderate', color: '#00ffff'},
+  {label: 'Moderately High', color: '#ffff00'},
+  {label: 'High', color: '#ff0000'},
+  {label: 'Very High', color: '#ffffff'}
+];
+flowAccumClasses.forEach(function(item) {
+  legend.add(ui.Panel({
+    widgets: [
+      ui.Label('', {backgroundColor: item.color, padding: '8px', width: '20px', height: '20px'}),
+      ui.Label(item.label, {margin: '4px'})
+    ],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  }));
+});
+Map.add(legend);
+
+// Export
+Export.image.toDrive({
+  image: flowAccumIndia,
+  description: 'FlowAccumulation_India',
+  folder: 'EarthEngineExports',
+  scale: 500,
+  region: indiaAOI,
+  maxPixels: 1e9
+});
